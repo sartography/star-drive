@@ -1,0 +1,61 @@
+version: "3.3"
+services:
+  db:
+    image: sartography/cr-connect-db
+    volumes:
+      - $HOME/docker/volumes/stardrive/postgres:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=ed_user
+      - POSTGRES_PASSWORD=ed_pass
+      - POSTGRES_MULTIPLE_DATABASES=stardrive,stardrive_test
+
+  es:
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.8.11
+    environment:
+      - "discovery.type=single-node"
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - $HOME/docker/volumes/stardrive/elasticsearch:/usr/share/elasticsearch/data
+    ports:
+      - 9200:9200
+      - 9300:9300
+
+  backend:
+    container_name: backend
+    depends_on:
+       - db
+       - es
+    image: sartography/star-drive-backend:$E2E_TAG
+    environment:
+      - APPLICATION_ROOT=/
+      - CORS_ALLOW_ORIGINS=localhost:4200,frontend:4200
+      - DB_HOST=db
+      - DB_NAME=ed_test
+      - DB_PASSWORD=ed_pass
+      - DB_PORT=5432
+      - DB_USER=ed_user
+      - DEVELOPMENT=true
+      - PORT0=5000
+      - PRODUCTION=false
+      - RESET_DB=true
+      - TESTING=false
+      - UPGRADE_DB=true
+    ports:
+      - "5000:5000"
+    command: ./wait-for-it.sh pb:5001 -t 0 -- ./docker_run.sh
+
+#  frontend:
+#    container_name: frontend
+#    depends_on:
+#       - db
+#       - es
+#       - backend
+#    image: sartography/star-drive-frontend:dev
+#    environment:
+#      - API_URL=http://localhost:5000
+#      - PORT0=4200
+#      - PRODUCTION=false
+#    ports:
+#      - "4200:4200"

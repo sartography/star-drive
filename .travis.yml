@@ -1,0 +1,61 @@
+sudo: required
+
+dist: bionic
+
+language: node_js
+
+node_js:
+  - 12
+
+services:
+  - docker
+  - xvfb
+
+before_install:
+  - |
+    if [[ $TRAVIS_BRANCH =~ ^(bug\/.*|chore\/.*|feature\/.*)$ ]]; then
+      export E2E_TAG="dev"
+    elif [[ $TRAVIS_BRANCH =~ ^(dev|testing|staging|master)$ ]]; then
+      export E2E_TAG="${TRAVIS_BRANCH//\//_}"
+    else
+      export E2E_TAG="latest"
+    fi
+    echo "E2E_TAG = $E2E_TAG"
+
+install:
+  - npm install
+
+addons:
+  chrome: stable
+
+env:
+  global:
+    - API_URL=http://localhost:5000/v1.0
+    - BASE_HREF=/
+    - DEPLOY_URL=/
+    - PORT0=4200
+    - PRODUCTION=false
+
+script:
+  - bash ./start-backend.sh
+  - bash ./test-backend.sh
+  - bash ./start-frontend.sh
+  - bash ./test-e2e.sh
+
+deploy:
+  provider: script
+  script: >-
+    cd frontend &&
+    bash ./deploy.sh sartography/star-drive-frontend &&
+    cd ../backend &&
+    bash ./deploy.sh sartography/star-drive-backend
+  on:
+    all_branches: true
+    condition: $TRAVIS_BRANCH =~ ^(dev|testing|staging|master)$
+
+notifications:
+  email:
+    on_success: change
+    on_failure: always
+    recipients:
+      - dan@sartography.com
